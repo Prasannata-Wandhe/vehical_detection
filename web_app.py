@@ -29,13 +29,11 @@ def get_model():
     global model
     if model is None:
         model_path = Path(MODEL_PATH)
-        if not model_path.is_absolute():
-            model_path = Path(__file__).parent / model_path
-        if not model_path.exists():
-            raise FileNotFoundError(
-                f"Vehicle model not found: {model_path}. Add yolo12n.pt to the deployment or set VEHICLE_MODEL."
-            )
-        model = YOLO(str(model_path))
+        if model_path.is_absolute() or model_path.exists():
+            model = YOLO(str(model_path))
+        else:
+            # Ultralytics downloads a named model from its model registry when needed.
+            model = YOLO(MODEL_PATH)
     return model
 
 
@@ -137,4 +135,4 @@ def analyze():
 
 
 if __name__ == "__main__":
-    app.run(host="127.0.0.1", port=int(os.environ.get("PORT", "5000")), debug=False)
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "7860")), debug=False)

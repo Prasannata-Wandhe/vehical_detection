@@ -1,3 +1,12 @@
+---
+title: Vehicle Distance Measurement System
+emoji: 🚗
+colorFrom: green
+colorTo: yellow
+sdk: docker
+app_port: 7860
+---
+
 # Vehicle Distance Measurement System
 
 ## 1. Introduction
@@ -206,7 +215,13 @@ The repository includes `vercel.json` and `api/index.py` for Vercel's Python ser
 
 The deployed app accepts image uploads at `/` and analyzes them through `/api/analyze`. Vercel's serverless functions are not suitable for long-running video processing; use the local video command for that workflow.
 
-### 6.4 Configuration
+### 6.4 Deploying to Hugging Face Spaces
+
+This repository includes a `Dockerfile` configured for Hugging Face Spaces. Create a new **Docker Space**, then upload or push this repository to it. The Space serves the upload application on port `7860`.
+
+The default web model is `yolo12n.pt`; Ultralytics downloads it the first time an image is analyzed. For a private or custom model, set the Space variable `VEHICLE_MODEL` and make the model available to the container.
+
+### 6.5 Configuration
 
 Update the script parameters for your specific setup:
 
@@ -242,11 +257,11 @@ VEHICLE_CONFIDENCE = 0.7
 VEHICLE_PLATE_CONFIDENCE = 0.475
 ```
 
-### 6.5 Controls
+### 6.6 Controls
 
 - Press `q` to quit the application
 
-### 6.6 Output
+### 6.7 Output
 
 The processed video is saved as:
 ```
