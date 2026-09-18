@@ -3,6 +3,8 @@
 # Import the necessary libraries
 import cv2
 import numpy as np
+import argparse
+from pathlib import Path
 from ultralytics import YOLO
 
 # Define 2042 × 1148px coordinates for multiple ROI zones
@@ -31,9 +33,23 @@ DISTANCE_DISPLAY_THRESHOLDS = {
 # MAIN ROI warning threshold (distances < 5m will be red)
 MAIN_ROI_WARNING_THRESHOLD = 5.0
 
-# Load YOLO models
-model = YOLO("yolo12x.pt")
-vehicle_plate_model = YOLO("vehicle-plate.pt")
+def parse_arguments():
+    parser = argparse.ArgumentParser(description="Estimate vehicle distances in dashcam video")
+    parser.add_argument("--input", default="dashcam_video.mov", help="Input video path")
+    parser.add_argument("--output", default="Vehicle-Distance-Measurement.mp4", help="Output video path")
+    parser.add_argument("--vehicle-model", default="yolo12x.pt", help="Vehicle YOLO model path")
+    parser.add_argument("--plate-model", default="vehicle-plate.pt", help="Plate YOLO model path")
+    parser.add_argument("--no-plate-blur", action="store_true", help="Skip plate detection and blurring")
+    return parser.parse_args()
+
+
+args = parse_arguments()
+
+# Load YOLO models. The plate model is optional so distance estimation can be tested independently.
+model = YOLO(args.vehicle_model)
+vehicle_plate_model = None if args.no_plate_blur or not Path(args.plate_model).exists() else YOLO(args.plate_model)
+if vehicle_plate_model is None:
+    print("Plate model not found or disabled; plate blurring is disabled.")
 
 def is_point_in_roi(point, roi_coordinates):
     return cv2.pointPolygonTest(roi_coordinates, point, False) >= 0
@@ -82,6 +98,9 @@ def get_distance_color(distance, zone_name):
         return (0, 255, 0)  # Green
 
 def blur_vehicle_plates_in_vehicle(frame, vehicle_bbox):
+    if vehicle_plate_model is None:
+        return
+
     x1, y1, x2, y2 = map(int, vehicle_bbox)
     vehicle_region = frame[y1:y2, x1:x2]
     
@@ -173,8 +192,10 @@ def draw_warning_message(frame, message):
     cv2.putText(frame, message, (position_x, position_y), font, font_scale, (255, 255, 255), thickness)
 
 # Open video
-video_capture = cv2.VideoCapture("dashcam_video.mov")  # write the name of the video file here
-output_file = 'Vehicle-Distance-Measurement.mp4'  # extension the name and extension of the video file to be recorded
+video_capture = cv2.VideoCapture(args.input)
+if not video_capture.isOpened():
+    raise FileNotFoundError(f"Could not open input video: {args.input}")
+output_file = args.output
 
 # Video features
 frame_width = int(video_capture.get(cv2.CAP_PROP_FRAME_WIDTH))

@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Vehicle Distance Lab</title>
+  <style>
+    :root { --ink: #17211b; --muted: #657269; --paper: #f3f1e8; --panel: #fffdf7; --accent: #d85b35; --line: #d9ddd2; --green: #26734a; }
+    * { box-sizing: border-box; }
+    body { margin: 0; color: var(--ink); background: radial-gradient(circle at 85% 10%, #e9c99f 0, transparent 28%), linear-gradient(135deg, #f3f1e8, #dce7dc); font-family: Georgia, 'Times New Roman', serif; min-height: 100vh; }
+    main { width: min(1180px, 92vw); margin: 0 auto; padding: 44px 0 64px; }
+    header { display: flex; justify-content: space-between; gap: 28px; align-items: end; border-bottom: 1px solid var(--line); padding-bottom: 24px; }
+    .eyebrow { color: var(--accent); font: 700 12px/1.2 Arial, sans-serif; letter-spacing: 1.8px; text-transform: uppercase; }
+    h1 { font-size: clamp(38px, 6vw, 76px); line-height: .95; margin: 12px 0 0; max-width: 680px; font-weight: 500; }
+    header p { max-width: 280px; color: var(--muted); font: 15px/1.5 Arial, sans-serif; margin: 0; }
+    .workspace { display: grid; grid-template-columns: 330px 1fr; gap: 22px; margin-top: 28px; }
+    .panel { background: rgba(255,253,247,.86); border: 1px solid var(--line); padding: 22px; box-shadow: 0 16px 40px rgba(50, 66, 50, .08); }
+    .panel h2 { font-size: 22px; font-weight: 500; margin: 0 0 8px; }
+    .panel p, .status { color: var(--muted); font: 14px/1.5 Arial, sans-serif; }
+    .drop { border: 1px dashed #9da99c; min-height: 160px; display: grid; place-items: center; text-align: center; padding: 18px; margin: 20px 0; cursor: pointer; background: #f7f5ed; }
+    .drop strong { display: block; color: var(--ink); font: 700 15px Arial, sans-serif; margin-bottom: 8px; }
+    input[type=file] { display: none; }
+    button { width: 100%; border: 0; background: var(--accent); color: white; padding: 14px 16px; font: 700 14px Arial, sans-serif; cursor: pointer; }
+    button:disabled { opacity: .45; cursor: wait; }
+    .status { min-height: 22px; margin-top: 14px; }
+    .result { min-height: 480px; display: grid; grid-template-columns: minmax(0, 1fr) 270px; gap: 20px; align-items: start; }
+    .preview { min-height: 430px; background: #e6e5dc; display: grid; place-items: center; overflow: hidden; }
+    .preview img { width: 100%; height: auto; display: block; }
+    .placeholder { color: #7a837a; font: 14px Arial, sans-serif; padding: 40px; text-align: center; }
+    .results h2 { margin-bottom: 18px; }
+    .count { font: 700 42px Georgia, serif; color: var(--accent); display: block; }
+    .object { border-top: 1px solid var(--line); padding: 13px 0; font: 13px/1.55 Arial, sans-serif; }
+    .object strong { display: block; font-size: 15px; text-transform: capitalize; }
+    .warning { color: var(--accent); font-weight: 700; }
+    .safe { color: var(--green); }
+    @media (max-width: 800px) { header { display: block; } header p { margin-top: 18px; } .workspace, .result { grid-template-columns: 1fr; } .result { min-height: 0; } }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <div><div class="eyebrow">Computer vision / local analysis</div><h1>See the road in measurements.</h1></div>
+      <p>Upload one road image and inspect the detected vehicles, lane zones, warnings, and estimated distances.</p>
+    </header>
+    <section class="workspace">
+      <aside class="panel">
+        <h2>Input frame</h2>
+        <p>The model analyzes the image locally. Nothing is sent to an external service.</p>
+        <label class="drop" for="imageInput"><span><strong id="fileName">Choose an image</strong><span>JPG, PNG, or WEBP</span></span></label>
+        <input id="imageInput" type="file" accept="image/jpeg,image/png,image/webp">
+        <button id="analyzeButton" disabled>Analyze frame</button>
+        <div class="status" id="status">Waiting for an image.</div>
+      </aside>
+      <section class="panel result">
+        <div class="preview" id="preview"><div class="placeholder">Your annotated frame will appear here.</div></div>
+        <div class="results"><h2>Objects <span class="count" id="count">0</span></h2><div id="objectList" class="status">No analysis yet.</div></div>
+      </section>
+    </section>
+  </main>
+  <script>
+    const input = document.getElementById('imageInput');
+    const button = document.getElementById('analyzeButton');
+    const status = document.getElementById('status');
+    const fileName = document.getElementById('fileName');
+    const preview = document.getElementById('preview');
+    const count = document.getElementById('count');
+    const objectList = document.getElementById('objectList');
+    let selectedFile = null;
+    input.addEventListener('change', () => {
+      selectedFile = input.files[0] || null;
+      fileName.textContent = selectedFile ? selectedFile.name : 'Choose an image';
+      button.disabled = !selectedFile;
+      status.textContent = selectedFile ? 'Ready to analyze.' : 'Waiting for an image.';
+    });
+    button.addEventListener('click', async () => {
+      if (!selectedFile) return;
+      button.disabled = true; status.textContent = 'Analyzing frame...';
+      const form = new FormData(); form.append('image', selectedFile);
+      try {
+        const response = await fetch('/api/analyze', { method: 'POST', body: form });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Analysis failed.');
+        preview.innerHTML = `<img src="${data.image}" alt="Annotated vehicle detections">`;
+        count.textContent = data.detections.length;
+        objectList.innerHTML = data.detections.length ? data.detections.map(item => `<div class="object"><strong>${item.object}</strong><span>${item.zone} zone / ${item.distance_m} m / ${(item.confidence * 100).toFixed(1)}% confidence</span><br><span class="${item.warning ? 'warning' : 'safe'}">${item.warning ? 'Warning distance' : 'Safe distance'}</span></div>`).join('') : 'No vehicles found inside the configured zones.';
+        status.textContent = 'Analysis complete.';
+      } catch (error) { status.textContent = error.message; }
+      button.disabled = false;
+    });
+  </script>
+</body>
+</html>

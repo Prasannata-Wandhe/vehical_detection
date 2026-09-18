@@ -113,22 +113,17 @@ $$\delta = \sqrt{(x_{\text{vehicle}} - x_{\text{center}})^2 + (y_{\text{vehicle}
 ## 4. Requirements
 
 ```txt
-python>=3.7
 opencv-python>=4.5.0
 numpy>=1.21.0
 ultralytics>=8.0.0
+flask>=3.0.0
 ```
 
 ## 5. Installation & Configuration
 
-### 5.1 Environment Setup
+Install the required packages:
 
 ```bash
-# Clone the repository
-git clone https://github.com/kemalkilicaslan/Vehicle-Distance-Measurement-System.git
-cd Vehicle-Distance-Measurement-System
-
-# Install required packages
 pip install -r requirements.txt
 ```
 
@@ -137,6 +132,9 @@ pip install -r requirements.txt
 ```
 Vehicle-Distance-Measurement-System/
 ├─ Vehicle-Distance-Measurement-System.py
+├─ web_app.py
+├─ templates/
+│  └─ index.html
 ├─ README.md
 ├─ requirements.txt
 └─ LICENSE
@@ -144,19 +142,59 @@ Vehicle-Distance-Measurement-System/
 
 ### 5.3 Required Files
 
-- **YOLOv12 Model:** `yolo12x.pt` (automatically downloaded on first run)
-- **Vehicle Plate Model:** `vehicle-plate.pt` (required for privacy protection)
-- **Input Video:** Dashcam video file in supported format (MP4, MOV, AVI)
+- **Vehicle YOLO Model:** `yolo12x.pt` (downloaded by Ultralytics when needed)
+- **Plate YOLO Model:** `vehicle-plate.pt` (optional; used for plate blurring)
+- **Input Image:** JPG, PNG, or WEBP for the web application
+- **Input Video:** Dashcam video in MP4, MOV, or AVI format for video processing
 
 ## 6. Usage / How to Run
 
-### 6.1 Basic Execution
+### 6.1 Web Application
+
+Start the local upload interface:
 
 ```bash
-python Vehicle-Distance-Measurement-System.py
+python web_app.py
 ```
 
-### 6.2 Configuration
+Open the following URL in a browser:
+
+```text
+http://127.0.0.1:5000
+```
+
+Upload a road image to receive:
+
+- An annotated image with vehicle bounding boxes
+- Vehicle type and detection confidence
+- ROI zone: `LEFT`, `MAIN`, or `RIGHT`
+- Estimated distance in meters
+- Warning status
+
+The web application uses `yolo12n.pt` by default when that model is available. To use another vehicle model:
+
+```bash
+set VEHICLE_MODEL=yolo12x.pt
+python web_app.py
+```
+
+On PowerShell, use `$env:VEHICLE_MODEL = "yolo12x.pt"` instead.
+
+### 6.2 Video Processing
+
+Run the original video pipeline with configurable input and output paths:
+
+```bash
+python Vehicle-Distance-Measurement-System.py --input dashcam_video.mov --output Vehicle-Distance-Measurement.mp4
+```
+
+For testing without the optional plate model:
+
+```bash
+python Vehicle-Distance-Measurement-System.py --input dashcam_video.mov --output Vehicle-Distance-Measurement.mp4 --vehicle-model yolo12n.pt --no-plate-blur
+```
+
+### 6.3 Configuration
 
 Update the script parameters for your specific setup:
 
@@ -192,11 +230,11 @@ VEHICLE_CONFIDENCE = 0.7
 VEHICLE_PLATE_CONFIDENCE = 0.475
 ```
 
-### 6.3 Controls
+### 6.4 Controls
 
 - Press `q` to quit the application
 
-### 6.4 Output
+### 6.5 Output
 
 The processed video is saved as:
 ```
