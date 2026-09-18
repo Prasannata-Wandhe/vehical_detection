@@ -1,5 +1,6 @@
 import base64
 import os
+from pathlib import Path
 
 import cv2
 import numpy as np
@@ -8,7 +9,7 @@ from ultralytics import YOLO
 
 app = Flask(__name__)
 MODEL_PATH = os.environ.get("VEHICLE_MODEL", "yolo12n.pt")
-model = YOLO(MODEL_PATH)
+model = None
 
 TARGET_CLASSES = {2: "car", 3: "motorcycle", 5: "bus", 7: "truck"}
 REAL_VEHICLE_HEIGHTS = {2: 1.55, 3: 1.2, 5: 3.0, 7: 2.5}
@@ -22,6 +23,20 @@ OPTICAL_CENTERS = {"LEFT": (156, 1050), "MAIN": (1000, 1020), "RIGHT": (1868, 10
 BASE_WIDTH = 2042
 BASE_HEIGHT = 1148
 BASE_FOCAL_LENGTH = 500
+
+
+def get_model():
+    global model
+    if model is None:
+        model_path = Path(MODEL_PATH)
+        if not model_path.is_absolute():
+            model_path = Path(__file__).parent / model_path
+        if not model_path.exists():
+            raise FileNotFoundError(
+                f"Vehicle model not found: {model_path}. Add yolo12n.pt to the deployment or set VEHICLE_MODEL."
+            )
+        model = YOLO(str(model_path))
+    return model
 
 
 def scaled_configuration(width, height):
@@ -61,7 +76,7 @@ def analyze_frame(frame):
     height, width = frame.shape[:2]
     zones, centers, focal_length = scaled_configuration(width, height)
     detections = []
-    results = model(frame, classes=list(TARGET_CLASSES), conf=0.7, verbose=False)
+    results = get_model()(frame, classes=list(TARGET_CLASSES), conf=0.7, verbose=False)
 
     for result in results:
         if result.boxes is None:
@@ -110,7 +125,10 @@ def analyze():
     image = cv2.imdecode(np.frombuffer(uploaded.read(), np.uint8), cv2.IMREAD_COLOR)
     if image is None:
         return jsonify({"error": "The uploaded file is not a supported image."}), 400
-    annotated, detections = analyze_frame(image)
+    try:
+        annotated, detections = analyze_frame(image)
+    except FileNotFoundError as error:
+        return jsonify({"error": str(error)}), 503
     success, encoded = cv2.imencode(".jpg", annotated, [cv2.IMWRITE_JPEG_QUALITY, 90])
     if not success:
         return jsonify({"error": "Could not encode the processed image."}), 500

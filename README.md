@@ -194,7 +194,19 @@ For testing without the optional plate model:
 python Vehicle-Distance-Measurement-System.py --input dashcam_video.mov --output Vehicle-Distance-Measurement.mp4 --vehicle-model yolo12n.pt --no-plate-blur
 ```
 
-### 6.3 Configuration
+### 6.3 Deploying the Web Application to Vercel
+
+The repository includes `vercel.json` and `api/index.py` for Vercel's Python serverless runtime.
+
+1. Import this GitHub repository into Vercel.
+2. Leave the project root as the repository root.
+3. Select **Other** as the framework preset if Vercel asks for one.
+4. Add the vehicle model file `yolo12n.pt` to the repository, or provide another model through the `VEHICLE_MODEL` environment variable.
+5. Deploy and open the Vercel-provided URL.
+
+The deployed app accepts image uploads at `/` and analyzes them through `/api/analyze`. Vercel's serverless functions are not suitable for long-running video processing; use the local video command for that workflow.
+
+### 6.4 Configuration
 
 Update the script parameters for your specific setup:
 
@@ -230,11 +242,11 @@ VEHICLE_CONFIDENCE = 0.7
 VEHICLE_PLATE_CONFIDENCE = 0.475
 ```
 
-### 6.4 Controls
+### 6.5 Controls
 
 - Press `q` to quit the application
 
-### 6.5 Output
+### 6.6 Output
 
 The processed video is saved as:
 ```
